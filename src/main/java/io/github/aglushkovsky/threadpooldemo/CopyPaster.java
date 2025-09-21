@@ -5,55 +5,33 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.*;
 
 import static io.github.aglushkovsky.threadpooldemo.FileUtil.*;
 
 public class CopyPaster {
 
-    private final ExecutorService executorService = Executors.newFixedThreadPool(3);
+    private final ExecutorService readersExecutorService = Executors.newFixedThreadPool(3);
 
-    private final Queue<FilePair> storage = new ArrayDeque<>();
+    private final ExecutorService watcherExecutorService = Executors.newSingleThreadExecutor();
 
-    private final Lock lock = new ReentrantLock();
-
-    private final Condition condition = lock.newCondition();
+    private final BlockingQueue<FilePair> storage = new LinkedBlockingQueue<>();
 
     public CopyPaster() {
-        executorService.execute(getWatcherTask());
+        watcherExecutorService.execute(getWatcherTask());
     }
 
     private Runnable getWatcherTask() {
         return () -> {
             while (true) {
-                FilePair filePair = null;
-                lock.lock();
                 try {
-                    if (!storage.isEmpty()) {
-                        filePair = storage.remove();
-                    } else {
-                        condition.await();
-                    }
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    lock.unlock();
-                }
+                    FilePair filePair = storage.take();
 
-                if (filePair == null) {
-                    continue;
-                }
-
-                try {
                     Path path = filePair.path();
                     Path outputPath = renameFile(path);
                     Files.write(outputPath, filePair.lines());
                     System.out.printf("Из хранилища взят файл %s и записан в %s%n", path, outputPath);
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -61,17 +39,11 @@ public class CopyPaster {
     }
 
     public void addFileToRead(String filename) {
-        executorService.execute(() -> {
+        readersExecutorService.execute(() -> {
             try {
                 Path path = Paths.get(filename);
-                lock.lock();
-                try {
-                    storage.add(new FilePair(path, Files.readAllLines(path)));
-                    System.out.println("Прочитан файл: " + filename);
-                    condition.signalAll();
-                } finally {
-                    lock.unlock();
-                }
+                storage.add(new FilePair(path, Files.readAllLines(path)));
+                System.out.println("Прочитан файл: " + filename);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
