@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class CacheObjectDao {
 
@@ -14,7 +15,7 @@ public class CacheObjectDao {
     );
 
     public Optional<CacheObject> findById(Integer id) {
-        CacheObjectDaoUtil.randomTimeSleep();
+        randomTimeSleep();
         return Optional.ofNullable(storage.get(id));
     }
 
@@ -31,15 +32,8 @@ public class CacheObjectDao {
         }
     }
 
-    private static class CacheObjectDaoUtil {
-
-        public static void randomTimeSleep() {
-            try {
-                Thread.sleep(new Random().nextLong(3000, 5000));
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+    private static void randomTimeSleep() {
+        ThreadLocalRandom.current().nextLong(3000, 5000);
     }
 
     public static CacheObjectDao getInstance() {
