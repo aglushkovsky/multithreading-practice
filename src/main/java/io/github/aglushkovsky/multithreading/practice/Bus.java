@@ -1,6 +1,8 @@
 package io.github.aglushkovsky.multithreading.practice;
 
+import java.util.Iterator;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.Condition;
 
 public class Bus {
@@ -15,10 +17,9 @@ public class Bus {
     }
 
     public void startRoute() {
-        for (BusStop busStop : route.getBusStops()) {
-            if (!busStop.contains(this)) {
-                continue;
-            }
+        Iterator<BusStop> iterator = route.getIteratorStartingFromBusStopWithSpecifiedBus(this);
+        while (iterator.hasNext()) {
+            BusStop busStop = iterator.next();
 
             if (busStop.getNextBusStop().isEmpty()) {
                 System.out.printf("Автобус с id=%s достиг конца маршрута%n", getId());
@@ -52,7 +53,7 @@ public class Bus {
 
             try {
                 System.out.printf("Автобус с id=%s в пути на остановку с id=%s%n", getId(), nextBusStop.getId());
-                Thread.sleep(500 + new Random().nextInt(500));
+                Thread.sleep(500 + ThreadLocalRandom.current().nextInt(500));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
