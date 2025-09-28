@@ -20,14 +20,7 @@ public class Bus {
         Iterator<BusStop> iterator = route.getIteratorStartingFromBusStopWithSpecifiedBus(this);
         while (iterator.hasNext()) {
             BusStop busStop = iterator.next();
-
-            if (busStop.getNextBusStop().isEmpty()) {
-                System.out.printf("Автобус с id=%s достиг конца маршрута%n", getId());
-                break;
-            }
-
-            BusStop nextBusStop = busStop.getNextBusStop().get();
-
+            BusStop nextBusStop = busStop.getNextBusStop().orElseThrow();
             Condition nextBusStopCondition = nextBusStop.getCondition();
 
             nextBusStop.getLock().lock();
@@ -47,6 +40,7 @@ public class Bus {
                 busStop.removeBus(this);
                 System.out.printf("Автобус с id=%s убыл с остановки с id=%s%n", getId(), busStop.getId());
                 busStop.getCondition().signalAll();
+                System.out.printf("Автобус с id=%s сообщил ждущим автобусам о своём убытии с остановки с id=%s%n", getId(), busStop.getId());
             } finally {
                 busStop.getLock().unlock();
             }
